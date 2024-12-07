@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 聊天应用</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        #container {
+            width: 80%;
+            max-width: 600px;
+            margin: 50px auto;
+        }
+        #messages {
+            width: 100%;
+            height: 300px;
+            overflow-y: scroll;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+        #messageInput {
+            width: 80%;
+            padding: 10px;
+            margin-right: 10px;
+        }
+        #sendButton {
+            padding: 10px 20px;
+        }
+        #connectButton {
+            padding: 10px 20px;
+            margin-top: 10px;
+        }
+        h1 {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>聊天室</h1>
+        
+        <div>
+            <label for="ip">服务器 IP：</label>
+            <input type="text" id="ip" value="127.0.0.1">
+            <label for="port">端口：</label>
+            <input type="number" id="port" value="8081">
+            <button id="connectButton">连接</button>
+        </div>
+
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="输入消息...">
+        <button id="sendButton">发送</button>
+    </div>
+
+    <script>
+        let socket;
+        let myId = generateUniqueId(); //生成唯一标识符
+        let messagesDiv = document.getElementById('messages');
+
+        
+        function generateUniqueId() {
+            let userId = sessionStorage.getItem('userId');
+            if (!userId) {
+                userId = 'user_' + Math.random().toString(36).substr(2, 9); //唯一 ID
+                sessionStorage.setItem('userId', userId); 
+            }
+            return userId;
+        }
+
+        // 连接到 WebSocket 服务器
+        document.getElementById('connectButton').onclick = function () {
+            let ip = document.getElementById('ip').value;
+            let port = document.getElementById('port').value;
+
+            if (ip && port) {
+                socket = new WebSocket('ws://' + ip + ':' + port); // WebSocket 连接到服务器
+
+                socket.onopen = function() {
+                    appendMessage('连接成功');
+                };
+
+                socket.onmessage = function(event) {
+                    try {
+                        let data=event.data;  // 获取来自服务器的消息
+
+                        // 显示来自其他用户的消息
+                        if (data.startsWith(myId + ":")) {
+                            // 不显示自己发送的消息
+                            return;
+                        }
+                        appendMessage(data, 'other');  // 显示其他用户的消息
+                    } catch (error) {
+                        console.error('无法解析消息:', event.data);
+                    }
+                };
+
+                socket.onerror = function(error) {
+                    appendMessage('连接失败: ' + error);
+                };
+
+                socket.onclose = function() {
+                    appendMessage('连接已关闭');
+                };
+            }
+        };
+
+        // 发送消息
+        document.getElementById('sendButton').onclick = function () {
+            let message = document.getElementById('messageInput').value;
+            if (message && socket) {
+                // 发送带有 senderId 的消息
+                socket.send(message);
+                appendMessage(message, 'my');  // 显示自己的消息
+                document.getElementById('messageInput').value = ''; // 清空输入框
+            }
+        };
+
+        // 显示消息到页面
+        function appendMessage(message, type = 'my') {
+            let messageElem = document.createElement('div');
+            messageElem.textContent = message;
+            messagesDiv.appendChild(messageElem);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; // 滚动到最后一条消息
+        }
+    </script>
+</body>
+</html>
+
+
